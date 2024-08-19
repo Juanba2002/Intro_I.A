@@ -1,16 +1,25 @@
 def convertir_a_lista_adyacencia(laberinto):
-        lista_adyacencia = {}
-        filas = len(laberinto)
-        columnas = len(laberinto[0])
-        for i in range(filas):
-            for j in range(columnas):
-                if laberinto[i][j] == 0:
-                    lista_adyacencia[(i, j)] = []
-                    for (di, dj) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                        ni, nj = i + di, j + dj
-                        if 0 <= ni < filas and 0 <= nj < columnas and laberinto[ni][nj] == 0:
-                            lista_adyacencia[(i, j)].append((ni, nj))
-        return lista_adyacencia
+    lista_adyacencia = {}
+    filas = len(laberinto)
+    columnas = len(laberinto[0])
+    for i in range(filas):
+        for j in range(columnas):
+            # Consideramos 0, 2 y 3 como celdas transitables
+            if laberinto[i][j] in [0, 2, 3]:
+                lista_adyacencia[(i, j)] = []
+                for (di, dj) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    ni, nj = i + di, j + dj
+                    if 0 <= ni < filas and 0 <= nj < columnas and laberinto[ni][nj] in [0, 2, 3]:
+                        lista_adyacencia[(i, j)].append((ni, nj))
+    return lista_adyacencia
+def encontrar_inicio_y_fin(laberinto):
+    for i in range(len(laberinto)):
+        for j in range(len(laberinto[0])):
+            if laberinto[i][j] == 2:
+                inicio = (i, j)
+            elif laberinto[i][j] == 3:
+                fin = (i, j)
+    return inicio, fin
 class Grafo:
 
     def __init__(self, lista_adyacencia):
@@ -72,23 +81,23 @@ class Grafo:
                     f_score[vecino] = tentative_g_score + self.h(vecino, nodo_final)
                     heappush(open_set, (f_score[vecino], vecino, camino + [vecino]))
         return None
+       
 
 if __name__ == '__main__':
     laberinto = [
-    [0, 1, 0, 0, 0],
+    [2, 1, 0, 0, 0],
     [0, 1, 0, 1, 0],
     [0, 0, 0, 1, 0],
     [0, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 3]
 ]
 
 # Convertimos el laberinto en una lista de adyacencia
     
 
     lista_adyacencia = convertir_a_lista_adyacencia(laberinto)
+    inicio,fin=encontrar_inicio_y_fin(laberinto)
     grafo = Grafo(lista_adyacencia)
-    inicio = (0, 0)  # Coordenadas de inicio
-    fin = (4, 4)  # Coordenadas del objetivo
     camino_dfs = grafo.primero_profundidad(inicio, fin)
     print("Camino DFS:", camino_dfs)
     camino_bfs = grafo.primero_anchura(inicio, fin)
