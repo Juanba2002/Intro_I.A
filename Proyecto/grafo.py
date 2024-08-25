@@ -1,106 +1,80 @@
-def convertir_a_lista_adyacencia(laberinto):
-    lista_adyacencia = {}
-    filas = len(laberinto)
-    columnas = len(laberinto[0])
-    for i in range(filas):
-        for j in range(columnas):
-            # Consideramos 0, 2 y 3 como celdas transitables
-            if laberinto[i][j] in [0, 2, 3]:
-                lista_adyacencia[(i, j)] = []
-                for (di, dj) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    ni, nj = i + di, j + dj
-                    if 0 <= ni < filas and 0 <= nj < columnas and laberinto[ni][nj] in [0, 2, 3]:
-                        lista_adyacencia[(i, j)].append((ni, nj))
-    return lista_adyacencia
-def encontrar_inicio_y_fin(laberinto):
-    for i in range(len(laberinto)):
-        for j in range(len(laberinto[0])):
-            if laberinto[i][j] == 2:
-                inicio = (i, j)
-            elif laberinto[i][j] == 3:
-                fin = (i, j)
-    return inicio, fin
-class Grafo:
+from collections import deque  # Importa deque, una estructura de datos similar a una cola doblemente enlazada
+import heapq  # Importa heapq, un módulo que proporciona una implementación de cola de prioridad (min-heap)
+from scipy.spatial import distance
 
+class Grafo:
     def __init__(self, lista_adyacencia):
+        # Inicializa el grafo con una lista de adyacencia que representa las conexiones entre nodos
         self.lista_adyacencia = lista_adyacencia
 
     def obtener_vecinos(self, v):
+        # Devuelve los vecinos de un nodo 'v' utilizando la lista de adyacencia
         return self.lista_adyacencia[v]
 
-    # funcion heuristica
-    def h(self, n, objetivo):
-        # Distancia de Manhattan
-        return abs(n[0] - objetivo[0]) + abs(n[1] - objetivo[1])
+    def h(self, nodo_actual, nodo_objetivo):
+        # Calcula y devuelve la heurística basada en la distancia Manhattan
+        # La distancia Manhattan es la suma de las diferencias absolutas de las coordenadas
+        #return abs(nodo_actual[0] - nodo_objetivo[0]) + abs(nodo_actual[1] - nodo_objetivo[1])
+        #return distance.chebyshev(nodo_actual, nodo_objetivo)
+        return max(abs(a - b) for a, b in zip(nodo_actual, nodo_objetivo))
 
     def primero_profundidad(self, nodo_inicio, nodo_final):
-        visitados = set()
-        pila = [(nodo_inicio, [nodo_inicio])]
+        # Implementa el algoritmo de búsqueda en profundidad (DFS)
+        visitados = set()  # Conjunto para rastrear los nodos visitados
+        pila = [(nodo_inicio, [nodo_inicio])]  # Pila para realizar la búsqueda, almacenando el nodo actual y el camino recorrido
 
         while pila:
-            (vertice, camino) = pila.pop()
-            if vertice not in visitados:
-                if vertice == nodo_final:
-                    return camino
-                visitados.add(vertice)
-                for vecino in self.obtener_vecinos(vertice):
-                    pila.append((vecino, camino + [vecino]))
-        return None
+            (vertice, camino) = pila.pop()  # Extrae el nodo y el camino actual desde la pila
+            if vertice in visitados:  # Si el nodo ya fue visitado, continúa con el siguiente
+                continue
+
+            for vecino, _ in self.obtener_vecinos(vertice):  # Itera sobre los vecinos del nodo actual
+                if vecino == nodo_final:  # Si se encuentra el nodo objetivo, retorna el camino completo
+                    return camino + [vecino]
+                else:
+                    pila.append((vecino, camino + [vecino]))  # Agrega el vecino a la pila con el camino actualizado
+
+            visitados.add(vertice)  # Marca el nodo actual como visitado
+
+        return None  # Retorna None si no se encuentra un camino al nodo objetivo
 
     def primero_anchura(self, nodo_inicio, nodo_final):
-        visitados = set()
-        cola = [(nodo_inicio, [nodo_inicio])]
+        # Implementa el algoritmo de búsqueda en anchura (BFS)
+        visitados = set()  # Conjunto para rastrear los nodos visitados
+        cola = deque([(nodo_inicio, [nodo_inicio])])  # Cola para realizar la búsqueda, almacenando el nodo actual y el camino recorrido
 
         while cola:
-            (vertice, camino) = cola.pop(0)
-            if vertice not in visitados:
-                if vertice == nodo_final:
-                    return camino
-                visitados.add(vertice)
-                for vecino in self.obtener_vecinos(vertice):
-                    cola.append((vecino, camino + [vecino]))
-        return None
+            (vertice, camino) = cola.popleft()  # Extrae el nodo y el camino actual desde la cola
+            if vertice in visitados:  # Si el nodo ya fue visitado, continúa con el siguiente
+                continue
+
+            for vecino, _ in self.obtener_vecinos(vertice):  # Itera sobre los vecinos del nodo actual
+                if vecino == nodo_final:  # Si se encuentra el nodo objetivo, retorna el camino completo
+                    return camino + [vecino]
+                else:
+                    cola.append((vecino, camino + [vecino]))  # Agrega el vecino a la cola con el camino actualizado
+
+            visitados.add(vertice)  # Marca el nodo actual como visitado
+
+        return None  # Retorna None si no se encuentra un camino al nodo objetivo
 
     def a_estrella(self, nodo_inicio, nodo_final):
-        from heapq import heappop, heappush
-
-        open_set = []
-        heappush(open_set, (0, nodo_inicio, [nodo_inicio]))
-        g_score = {nodo_inicio: 0}
-        f_score = {nodo_inicio: self.h(nodo_inicio, nodo_final)}
+        # Implementa el algoritmo A* (A-estrella)
+        open_set = []  # Lista que actúa como una cola de prioridad para los nodos por explorar
+        heapq.heappush(open_set, (0, nodo_inicio, [nodo_inicio]))  # Inserta el nodo inicial en el open set con prioridad 0
+        costos = {nodo_inicio: 0}  # Diccionario para almacenar el costo del camino más barato hasta cada nodo
 
         while open_set:
-            _, current, camino = heappop(open_set)
-            if current == nodo_final:
+            _, actual, camino = heapq.heappop(open_set)  # Extrae el nodo con la menor prioridad (costo + heurística)
+
+            if actual == nodo_final:  # Si se encuentra el nodo objetivo, retorna el camino completo
                 return camino
 
-            for vecino in self.obtener_vecinos(current):
-                tentative_g_score = g_score[current] + 1  # Asume un costo uniforme
-                if vecino not in g_score or tentative_g_score < g_score[vecino]:
-                    g_score[vecino] = tentative_g_score
-                    f_score[vecino] = tentative_g_score + self.h(vecino, nodo_final)
-                    heappush(open_set, (f_score[vecino], vecino, camino + [vecino]))
-        return None
-       
+            for vecino, costo in self.obtener_vecinos(actual):  # Itera sobre los vecinos del nodo actual
+                nuevo_costo = costos[actual] + costo  # Calcula el costo acumulado para llegar al vecino
+                if vecino not in costos or nuevo_costo < costos[vecino]:  # Si se encuentra un camino más barato, se actualiza
+                    costos[vecino] = nuevo_costo  # Actualiza el costo del camino más barato al vecino
+                    prioridad = nuevo_costo + self.h(vecino, nodo_final)  # Calcula la prioridad del vecino para el open set
+                    heapq.heappush(open_set, (prioridad, vecino, camino + [vecino]))  # Agrega el vecino al open set con su prioridad
 
-if __name__ == '__main__':
-    laberinto = [
-    [2, 1, 0, 0, 0],
-    [0, 1, 0, 1, 0],
-    [0, 0, 0, 1, 0],
-    [0, 1, 1, 1, 0],
-    [0, 0, 0, 0, 3]
-]
-
-# Convertimos el laberinto en una lista de adyacencia
-    
-
-    lista_adyacencia = convertir_a_lista_adyacencia(laberinto)
-    inicio,fin=encontrar_inicio_y_fin(laberinto)
-    grafo = Grafo(lista_adyacencia)
-    camino_dfs = grafo.primero_profundidad(inicio, fin)
-    print("Camino DFS:", camino_dfs)
-    camino_bfs = grafo.primero_anchura(inicio, fin)
-    print("Camino BFS:", camino_bfs)
-    camino_a_estrella = grafo.a_estrella(inicio, fin)
-    print("Camino A*:", camino_a_estrella)
+        return None  # Retorna None si no se encuentra un camino al nodo objetivo
